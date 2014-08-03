@@ -2,9 +2,14 @@
 
 
 
+Class Set(object):
 
-if __name__ == '__main__':
-    from set_test import *
-    unittest.main()
+    def __init__(self,elements):
+        if(isinstance(elements,list)):
+            self.elements = elements
+        else:
+            raise Exception()
 
+    def is_element(self,element):
+        return element in self.elements
 
