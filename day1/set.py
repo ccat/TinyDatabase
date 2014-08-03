@@ -2,7 +2,7 @@
 
 
 
-Class Set(object):
+class Set(object):
 
     def __init__(self,elements):
         if(isinstance(elements,list)):
