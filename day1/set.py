@@ -4,8 +4,7 @@
 
 
 if __name__ == '__main__':
-    import set_test
-    import unittest
+    from set_test import *
     unittest.main()
 
 
