@@ -1,7 +1,7 @@
 
 import unittest
 
-import set
+from set import *
 
 class ExtensionalDefinitionTest(unittest.TestCase):
 
