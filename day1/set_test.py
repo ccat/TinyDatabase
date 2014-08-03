@@ -62,3 +62,7 @@ class ExtensionalDefinitionTest(unittest.TestCase):
             for y in range(4,10):
                 self.assertTrue((x,y) in setC)
 
+class IntensionalDefinitionTest(unittest.TestCase):
+
+    def setUp(self):
+        pass
