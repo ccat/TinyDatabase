@@ -6,7 +6,7 @@ import set
 class ExtensionalDefinitionTest(unittest.TestCase):
 
     def setUp(self):
-        self.seq = range(10)
+        pass
 
     def test_extensional_definition(self):
         setA = Set([1,2,3,4,5])
