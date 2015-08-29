@@ -3,7 +3,6 @@ TinyDatabase
 
 Testing now.
 
-なお、言語にはPythonを利用しています。
 
 ## Licence
 
