@@ -1,4 +1,4 @@
-package main
+package tinydatabase
 
 import (
 	//"fmt"
@@ -10,6 +10,7 @@ import (
 	"io"
 	"math"
 	"bytes"
+	"time"
 )
 
 
@@ -33,6 +34,8 @@ func (self *ColumnType) GetBytes() (uint64,error){
 		return 8,nil
 	}else if(self.Type=="string256"){
 		return 256,nil
+	}else if(self.Type=="time"){
+		return 15,nil
 	}
 	return 0,errors.New("Type is not valid")
 }
@@ -52,6 +55,12 @@ func (self *ColumnType) GetNil() ([]byte,error){
 	    binary.LittleEndian.PutUint64(b, bits)
 		return b,nil
 	}else if(self.Type=="string256"){
+		return b,nil
+	}else if(self.Type=="time"){
+		b,err = time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC).MarshalBinary()
+		if(err!=nil){
+			return nil,err
+		}
 		return b,nil
 	}else{
 		return nil,errors.New("Type is not valid")
@@ -91,6 +100,16 @@ func (self *ColumnType) ConvertBytes(val interface{}) ([]byte,error){
 			b[i]=v[i]
 		}
 		return b,nil
+	}else if(self.Type=="time"){
+		v,ok:=val.(time.Time)
+		if(ok==false){
+			return nil,errors.New("Missmatch type(time) and val: "+self.Name)
+		}
+		b,err=v.MarshalBinary()
+		if(err!=nil){
+			return nil,err
+		}
+		return b,nil
 	}else{
 		return nil,errors.New("Type is not valid: "+self.Name)
 	}
@@ -111,6 +130,13 @@ func (self *ColumnType) ConvertVal(b []byte) (interface{},error){
 	}else if(self.Type=="string256"){
 		n := bytes.IndexByte(b, 0)
 		v := string(b[:n])
+		return v,nil
+	}else if(self.Type=="time"){
+		var v time.Time
+		err := v.UnmarshalBinary(b)
+		if(err!=nil){
+			return nil,err
+		}
 		return v,nil
 	}else{
 		return nil,errors.New("Type is not valid: "+self.Name)
@@ -281,8 +307,5 @@ func (self *Table) Delete(rowNum int) (error){
 		return err
 	}
 	return nil
-}
-
-func main() {
 }
 

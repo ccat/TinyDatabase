@@ -1,9 +1,9 @@
-package main
+package tinydatabase
 
 import (
 	"os"
 	"testing"
-	//"time"
+	"time"
 )
 
 func Test1_basicUsage(t *testing.T) {
@@ -15,7 +15,7 @@ func Test1_basicUsage(t *testing.T) {
 		{Name:"intline",Type:"int64"},
 		{Name:"floatline",Type:"float64"},
 		{Name:"strline",Type:"string256"},
-		//{Name:"dateline",Type:"time"},
+		{Name:"dateline",Type:"time"},
 	}
 
 	tableInst, err := NewTable(tableFileName, columnSet)
@@ -35,6 +35,7 @@ func Test1_basicUsage(t *testing.T) {
 	testMap["intline"]=int64(100)
 	testMap["floatline"]=10.5
 	testMap["strline"]="aaaa"
+	testMap["dateline"]=time.Now()
 	
 	num,err := tableInst.Insert(testMap)
 	if(err != nil){
@@ -68,6 +69,9 @@ func Test1_basicUsage(t *testing.T) {
 		t.Errorf("Failed to read row at 0: strline: %s!=%s",str2,str1)
 		t.Errorf("len testMap:%d",len(str1))
 		t.Errorf("len testMap2:%d",len(str2))
+	}
+	if(testMap2["dateline"] != testMap["dateline"]){
+		t.Errorf("Failed to read row at 0: dateline")
 	}
 
 	testMap2["intline"]=int64(102)
