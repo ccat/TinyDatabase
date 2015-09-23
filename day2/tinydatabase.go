@@ -187,6 +187,9 @@ func (self *Table) OpenFile(filename string) error {
 }
 
 func (self *Table) Close() error {
+	if self.file == nil {
+		return errors.New("Already closed")
+	}
 	self.Filename = ""
 	self.file.Close()
 	self.file = nil
@@ -207,8 +210,27 @@ func (self *Table) SetColumns(columnTypes []ColumnType) error {
 }
 
 func (self *Table) WriteRow(rowNum int64, row map[string]interface{}) error {
-	targetOff := rowNum
 	var b []byte
+	var insertData map[string][]byte
+	insertData = make(map[string][]byte)
+	//Data type check
+	for _, v := range self.columnTypes {
+		if val, ok := row[v.Name]; ok {
+			b, err := v.ConvertBytes(val)
+			if err != nil {
+				return err
+			}
+			insertData[v.Name] = b
+		} else {
+			b, err := v.GetNil()
+			if err != nil {
+				return err
+			}
+			insertData[v.Name] = b
+		}
+	}
+
+	targetOff := rowNum
 	b = make([]byte, 1)
 	b[0] = 1
 	num, err := self.file.WriteAt(b, targetOff)
@@ -217,18 +239,7 @@ func (self *Table) WriteRow(rowNum int64, row map[string]interface{}) error {
 	}
 	targetOff = targetOff + int64(num)
 	for _, v := range self.columnTypes {
-		if val, ok := row[v.Name]; ok {
-			b, err = v.ConvertBytes(val)
-			if err != nil {
-				return err
-			}
-		} else {
-			b, err = v.GetNil()
-			if err != nil {
-				return err
-			}
-		}
-		num, err := self.file.WriteAt(b, targetOff)
+		num, err := self.file.WriteAt(insertData[v.Name], targetOff)
 		if err != nil {
 			return err
 		}
@@ -247,14 +258,50 @@ func (self *Table) Update(rowNum int, row map[string]interface{}) error {
 }
 
 func (self *Table) Insert(row map[string]interface{}) (int, error) {
+	lastNum, err := self.GetLastNum()
+	lastOff := int64(lastNum)*int64(self.columnBytes+1) + int64(binary.MaxVarintLen64) //To ignore trash data
+
+	err = self.WriteRow(lastOff, row)
+	return lastNum, err
+}
+
+func (self *Table) GetLastNum() (int, error) { // To return next data write point
 	lastOff, err := self.file.Seek(0, 2)
 	if err != nil {
 		return -1, err
 	}
 	var rowNum int
 	rowNum = int((lastOff - int64(binary.MaxVarintLen64)) / (int64(self.columnBytes + 1)))
-	err = self.WriteRow(lastOff, row)
 	return rowNum, err
+}
+
+func (self *Table) Select(condition map[string]interface{}) ([]map[string]interface{}, error) {
+	var result []map[string]interface{}
+	lastNum, err := self.GetLastNum()
+	if err != nil {
+		return nil, err
+	}
+	for i := 0; i < lastNum; i++ {
+		testRow, err := self.Read(i)
+		if err != nil {
+			if err.Error() == "Deleted row" {
+				continue
+			}
+			return nil, err
+		}
+
+		flag := true
+		for k, v := range condition {
+			if testRow[k] != v {
+				flag = false
+				break
+			}
+		}
+		if flag == true {
+			result = append(result, testRow)
+		}
+	}
+	return result, nil
 }
 
 func (self *Table) Read(num int) (map[string]interface{}, error) {
