@@ -11,11 +11,11 @@ func Test1_basicUsage(t *testing.T) {
 	tableFileName := "test.table"
 	os.Remove(tableFileName)
 
-	columnSet := []ColumnType{
-		{Name: "intline", Type: "int64"},
-		{Name: "floatline", Type: "float64"},
-		{Name: "strline", Type: "string256"},
-		{Name: "dateline", Type: "time"},
+	columnSet := []ColumnConfig{
+		{Name: "intline", Type: CT_Int64},
+		{Name: "floatline", Type: CT_Float64},
+		{Name: "strline", Type: CT_String256},
+		{Name: "dateline", Type: CT_Time},
 	}
 
 	tableInst, err := NewTable(tableFileName, columnSet)
@@ -31,7 +31,7 @@ func Test1_basicUsage(t *testing.T) {
 		t.Errorf("Failed to create table file:%s", err)
 	}
 
-	testMap := make(map[string]interface{})
+	testMap := make(Row)
 	testMap["intline"] = int64(100)
 	testMap["floatline"] = 10.5
 	testMap["strline"] = "aaaa"
@@ -93,9 +93,10 @@ func Test1_basicUsage(t *testing.T) {
 		t.Errorf("Failed to delete row at 0: %s", err)
 	}
 
-	testMap = make(map[string]interface{})
-	testMap["intline"] = int64(80)
-	selectedRows, err := tableInst.Select(testMap)
+	testConds := []Condition{
+		{TargetColumn: ColumnConfig{Name: "intline", Type: CT_Int64}, LookupCondition: CONDITION_Equal, Value: int64(80)},
+	}
+	selectedRows, err := tableInst.Select(testConds)
 	if err != nil {
 		t.Errorf("Failed to select row: %s", err)
 	}
@@ -103,8 +104,8 @@ func Test1_basicUsage(t *testing.T) {
 		t.Errorf("Failed to select non exist row")
 	}
 
-	testMap["intline"] = int64(100)
-	selectedRows, err = tableInst.Select(testMap)
+	testConds[0].Value = int64(100)
+	selectedRows, err = tableInst.Select(testConds)
 	if err != nil {
 		t.Errorf("Failed to select row: %s", err)
 	}
@@ -123,11 +124,11 @@ func Test2_errUsageWrongColumnType(t *testing.T) {
 	tableFileName := "test.table"
 	os.Remove(tableFileName)
 
-	columnSet := []ColumnType{
-		{Name: "intline", Type: "int64"},
-		{Name: "floatline", Type: "float64"},
-		{Name: "strline", Type: "string256"},
-		{Name: "dateline", Type: "time2"},
+	columnSet := []ColumnConfig{
+		{Name: "intline", Type: CT_Int64},
+		{Name: "floatline", Type: CT_Float64},
+		{Name: "strline", Type: CT_String256},
+		{Name: "dateline", Type: 10},
 	}
 
 	tableInst, err := NewTable(tableFileName, columnSet)
@@ -144,11 +145,11 @@ func Test3_errUsageCloseFunc(t *testing.T) {
 	tableFileName := "test.table"
 	os.Remove(tableFileName)
 
-	columnSet := []ColumnType{
-		{Name: "intline", Type: "int64"},
-		{Name: "floatline", Type: "float64"},
-		{Name: "strline", Type: "string256"},
-		{Name: "dateline", Type: "time"},
+	columnSet := []ColumnConfig{
+		{Name: "intline", Type: CT_Int64},
+		{Name: "floatline", Type: CT_Float64},
+		{Name: "strline", Type: CT_String256},
+		{Name: "dateline", Type: CT_Time},
 	}
 
 	tableInst, err := NewTable(tableFileName, columnSet)
@@ -174,11 +175,11 @@ func Test4_errUsageWriteBroken(t *testing.T) {
 	tableFileName := "test.table"
 	os.Remove(tableFileName)
 
-	columnSet := []ColumnType{
-		{Name: "intline", Type: "int64"},
-		{Name: "floatline", Type: "float64"},
-		{Name: "strline", Type: "string256"},
-		{Name: "dateline", Type: "time"},
+	columnSet := []ColumnConfig{
+		{Name: "intline", Type: CT_Int64},
+		{Name: "floatline", Type: CT_Float64},
+		{Name: "strline", Type: CT_String256},
+		{Name: "dateline", Type: CT_Time},
 	}
 
 	tableInst, err := NewTable(tableFileName, columnSet)

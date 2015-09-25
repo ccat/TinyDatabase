@@ -13,66 +13,189 @@ import (
 	"time"
 )
 
-type ColumnType struct {
+
+type ColumnType int
+
+const (
+	CT_Int64 ColumnType = iota+1
+	CT_Float64 
+	CT_String256 
+	CT_Time
+)
+
+type ColumnConfig struct {
 	Name string
-	Type string
+	Type ColumnType
 }
 
 type Table struct {
 	Filename    string
 	file        *os.File
 	fileVersion int64
-	columnTypes []ColumnType
+	ColumnConfigs []ColumnConfig
 	columnBytes uint64
 }
 
-func (self *ColumnType) GetBytes() (uint64, error) {
-	if self.Type == "int64" {
-		return binary.MaxVarintLen64, nil
-	} else if self.Type == "float64" {
-		return 8, nil
-	} else if self.Type == "string256" {
-		return 256, nil
-	} else if self.Type == "time" {
-		return 15, nil
-	}
-	return 0, errors.New("Type is not valid")
+type Row map[string]interface{}
+
+type Condition struct {
+	TargetColumn ColumnConfig
+	LookupCondition int
+	Value interface{}
 }
 
-func (self *ColumnType) GetNil() ([]byte, error) {
+const (
+	CONDITION_Equal  = iota
+	CONDITION_LessThan 
+	CONDITION_GreaterThan 
+	CONDITION_LessThanOrEqual
+	CONDITION_GreaterThanOrEqual
+)
+
+func (self ColumnType) String() string {
+    switch self {
+    case CT_Int64:
+        return "int64"
+    case CT_Float64:
+        return "float64"
+    case CT_String256:
+        return "string256"
+    case CT_Time:
+        return "time"
+    default:
+        return "Unknown"
+    }
+}
+
+func (self *Condition) Check(row Row) (bool) {
+	if val, ok := row[self.TargetColumn.Name]; ok {
+		switch val.(type) {
+		case int64:
+			return self.checkInt64(val.(int64))
+		case float64:
+			return self.checkFloat64(val.(float64))
+		case string:
+			return self.checkString(val.(string))
+		case time.Time:
+			return self.checkTime(val.(time.Time))
+		}
+    }
+	return false
+}
+
+func (self *Condition) checkInt64(val int64) (bool) {
+	myVal := self.Value.(int64)
+	switch self.LookupCondition {
+	case CONDITION_Equal:
+		if val==myVal {return true}
+	case CONDITION_LessThan:
+		if val<myVal {return true}
+	case CONDITION_GreaterThan:
+		if val>myVal {return true}
+	case CONDITION_LessThanOrEqual:
+		if val<=myVal {return true}
+	case CONDITION_GreaterThanOrEqual:
+		if val>=myVal {return true}
+	}
+	return false	
+}
+
+func (self *Condition) checkFloat64(val float64) (bool) {
+	myVal := self.Value.(float64)
+	switch self.LookupCondition {
+	case CONDITION_Equal:
+		if val==myVal {return true}
+	case CONDITION_LessThan:
+		if val<myVal {return true}
+	case CONDITION_GreaterThan:
+		if val>myVal {return true}
+	case CONDITION_LessThanOrEqual:
+		if val<=myVal {return true}
+	case CONDITION_GreaterThanOrEqual:
+		if val>=myVal {return true}
+	}
+	return false	
+}
+
+func (self *Condition) checkTime(val time.Time) (bool) {
+	diff := self.Value.(time.Time).Sub(val)
+	switch self.LookupCondition {
+	case CONDITION_Equal:
+		if diff==0 {return true}
+	case CONDITION_LessThan:
+		if diff>0 {return true}
+	case CONDITION_GreaterThan:
+		if diff<0 {return true}
+	case CONDITION_LessThanOrEqual:
+		if diff>=0 {return true}
+	case CONDITION_GreaterThanOrEqual:
+		if diff<=0 {return true}
+	}
+	return false	
+}
+
+func (self *Condition) checkString(val string) (bool) {
+	myVal := self.Value.(string)
+	switch self.LookupCondition {
+	case CONDITION_Equal:
+		if val==myVal {return true}
+	}
+	return false	
+}
+
+func (self *ColumnConfig) GetBytes() (uint64, error) {
+    switch self.Type {
+    case CT_Int64:
+		return binary.MaxVarintLen64, nil
+    case CT_Float64:
+		return 8, nil
+    case CT_String256:
+		return 256, nil
+    case CT_Time:
+		return 15, nil
+    default:
+		return 0, errors.New("Type is not valid")
+    }
+}
+
+func (self *ColumnConfig) GetNil() ([]byte, error) {
 	var b []byte
 	byteNum, err := self.GetBytes()
 	if err != nil {
 		return nil, err
 	}
 	b = make([]byte, byteNum)
-	if self.Type == "int64" {
+
+    switch self.Type {
+    case CT_Int64:
 		binary.PutVarint(b, int64(0))
 		return b, nil
-	} else if self.Type == "float64" {
+    case CT_Float64:
 		bits := math.Float64bits(0.0)
 		binary.LittleEndian.PutUint64(b, bits)
 		return b, nil
-	} else if self.Type == "string256" {
+    case CT_String256:
 		return b, nil
-	} else if self.Type == "time" {
+    case CT_Time:
 		b, err = time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC).MarshalBinary()
 		if err != nil {
 			return nil, err
 		}
 		return b, nil
-	} else {
+    default:
 		return nil, errors.New("Type is not valid")
-	}
+    }
 }
 
-func (self *ColumnType) ConvertBytes(val interface{}) ([]byte, error) {
+func (self *ColumnConfig) ConvertBytes(val interface{}) ([]byte, error) {
 	var b []byte
 	byteNum, err := self.GetBytes()
 	if err != nil {
 		return nil, err
 	}
-	if self.Type == "int64" {
+
+    switch self.Type {
+    case CT_Int64:
 		v, ok := val.(int64)
 		if ok == false {
 			return nil, errors.New("Missmatch type(int64) and val: " + self.Name)
@@ -80,7 +203,7 @@ func (self *ColumnType) ConvertBytes(val interface{}) ([]byte, error) {
 		b = make([]byte, byteNum)
 		binary.PutVarint(b, v)
 		return b, nil
-	} else if self.Type == "float64" {
+    case CT_Float64:
 		v, ok := val.(float64)
 		if ok == false {
 			return nil, errors.New("Missmatch type(float64) and val: " + self.Name)
@@ -89,7 +212,7 @@ func (self *ColumnType) ConvertBytes(val interface{}) ([]byte, error) {
 		bits := math.Float64bits(v)
 		binary.LittleEndian.PutUint64(b, bits)
 		return b, nil
-	} else if self.Type == "string256" {
+    case CT_String256:
 		v, ok := val.(string)
 		if ok == false {
 			return nil, errors.New("Missmatch type(string256) and val: " + self.Name)
@@ -99,7 +222,7 @@ func (self *ColumnType) ConvertBytes(val interface{}) ([]byte, error) {
 			b[i] = v[i]
 		}
 		return b, nil
-	} else if self.Type == "time" {
+    case CT_Time:
 		v, ok := val.(time.Time)
 		if ok == false {
 			return nil, errors.New("Missmatch type(time) and val: " + self.Name)
@@ -109,46 +232,47 @@ func (self *ColumnType) ConvertBytes(val interface{}) ([]byte, error) {
 			return nil, err
 		}
 		return b, nil
-	} else {
+    default:
 		return nil, errors.New("Type is not valid: " + self.Name)
-	}
+    }
 }
 
-func (self *ColumnType) ConvertVal(b []byte) (interface{}, error) {
-	if self.Type == "int64" {
+func (self *ColumnConfig) ConvertVal(b []byte) (interface{}, error) {
+    switch self.Type {
+    case CT_Int64:
 		var v int64
 		v, num := binary.Varint(b)
 		if num < 1 {
 			return nil, errors.New("Missmatch type(int64) and val: " + self.Name)
 		}
 		return v, nil
-	} else if self.Type == "float64" {
+    case CT_Float64:
 		bits := binary.LittleEndian.Uint64(b)
 		v := math.Float64frombits(bits)
 		return v, nil
-	} else if self.Type == "string256" {
+    case CT_String256:
 		n := bytes.IndexByte(b, 0)
 		v := string(b[:n])
 		return v, nil
-	} else if self.Type == "time" {
+    case CT_Time:
 		var v time.Time
 		err := v.UnmarshalBinary(b)
 		if err != nil {
 			return nil, err
 		}
 		return v, nil
-	} else {
+    default:
 		return nil, errors.New("Type is not valid: " + self.Name)
-	}
+    }
 }
 
-func NewTable(filename string, columnTypes []ColumnType) (*Table, error) {
+func NewTable(filename string, columnConfigs []ColumnConfig) (*Table, error) {
 	var tableInst *Table = new(Table)
 	err := tableInst.OpenFile(filename)
 	if err != nil {
 		return nil, err
 	}
-	err = tableInst.SetColumns(columnTypes)
+	err = tableInst.setColumns(columnConfigs)
 	if err != nil {
 		return nil, err
 	}
@@ -196,10 +320,10 @@ func (self *Table) Close() error {
 	return nil
 }
 
-func (self *Table) SetColumns(columnTypes []ColumnType) error {
-	self.columnTypes = columnTypes
+func (self *Table) setColumns(columnConfigs []ColumnConfig) error {
+	self.ColumnConfigs = columnConfigs
 	self.columnBytes = 0
-	for _, val := range columnTypes {
+	for _, val := range columnConfigs {
 		num, err := val.GetBytes()
 		if err != nil {
 			return err
@@ -209,12 +333,12 @@ func (self *Table) SetColumns(columnTypes []ColumnType) error {
 	return nil
 }
 
-func (self *Table) WriteRow(rowNum int64, row map[string]interface{}) error {
+func (self *Table) WriteRow(rowNum int64, row Row) error {
 	var b []byte
 	var insertData map[string][]byte
 	insertData = make(map[string][]byte)
 	//Data type check
-	for _, v := range self.columnTypes {
+	for _, v := range self.ColumnConfigs {
 		if val, ok := row[v.Name]; ok {
 			b, err := v.ConvertBytes(val)
 			if err != nil {
@@ -238,7 +362,7 @@ func (self *Table) WriteRow(rowNum int64, row map[string]interface{}) error {
 		return err
 	}
 	targetOff = targetOff + int64(num)
-	for _, v := range self.columnTypes {
+	for _, v := range self.ColumnConfigs {
 		num, err := self.file.WriteAt(insertData[v.Name], targetOff)
 		if err != nil {
 			return err
@@ -252,12 +376,12 @@ func (self *Table) WriteRow(rowNum int64, row map[string]interface{}) error {
 	return nil
 }
 
-func (self *Table) Update(rowNum int, row map[string]interface{}) error {
+func (self *Table) Update(rowNum int, row Row) error {
 	targetOff := int64(rowNum)*int64(self.columnBytes+1) + int64(binary.MaxVarintLen64)
 	return self.WriteRow(targetOff, row)
 }
 
-func (self *Table) Insert(row map[string]interface{}) (int, error) {
+func (self *Table) Insert(row Row) (int, error) {
 	lastNum, err := self.GetLastNum()
 	lastOff := int64(lastNum)*int64(self.columnBytes+1) + int64(binary.MaxVarintLen64) //To ignore trash data
 
@@ -275,7 +399,7 @@ func (self *Table) GetLastNum() (int, error) { // To return next data write poin
 	return rowNum, err
 }
 
-func (self *Table) Select(condition map[string]interface{}) ([]map[string]interface{}, error) {
+func (self *Table) Select(condition []Condition) ([]map[string]interface{}, error) {
 	var result []map[string]interface{}
 	lastNum, err := self.GetLastNum()
 	if err != nil {
@@ -291,8 +415,8 @@ func (self *Table) Select(condition map[string]interface{}) ([]map[string]interf
 		}
 
 		flag := true
-		for k, v := range condition {
-			if testRow[k] != v {
+		for _, v := range condition {
+			if v.Check(testRow)==false {
 				flag = false
 				break
 			}
@@ -304,7 +428,7 @@ func (self *Table) Select(condition map[string]interface{}) ([]map[string]interf
 	return result, nil
 }
 
-func (self *Table) Read(num int) (map[string]interface{}, error) {
+func (self *Table) Read(num int) (Row, error) {
 	targetOff := int64(num)*int64(self.columnBytes+1) + int64(binary.MaxVarintLen64)
 
 	var b []byte
@@ -318,9 +442,9 @@ func (self *Table) Read(num int) (map[string]interface{}, error) {
 	}
 	targetOff = targetOff + 1
 
-	var result map[string]interface{}
-	result = make(map[string]interface{})
-	for _, v := range self.columnTypes {
+	var result Row
+	result = make(Row)
+	for _, v := range self.ColumnConfigs {
 		b, err = v.GetNil()
 		if err != nil {
 			return nil, err
