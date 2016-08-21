@@ -12,7 +12,7 @@ import (
 	//"io"
 	//"io/ioutil"
 	"math"
-	"os"
+	//"os"
 	//"path"
 	//"strconv"
 	"time"
@@ -31,23 +31,15 @@ type TableInterface interface {
 	Open(directory string, tablename string) error
 	Close() error
 	ReadRow(rowNum int64) (Row, error)
-	WriteRow(rowNum int64, row Row) (int64, error)
+	WriteRow(row Row) (int64, error)
 	DeleteRow(rowNum int64) error
 }
 
-type TableDynamic struct {
-	tablefile           *os.File
-	indexfile           *os.File
-	fileVersion         int64
-	columnTypes         []ColumnType
-	columnBytes         int64
-	numOfFlexibleColumn int64
-}
-
 const (
-	UNKNOWN  int64 = 0
-	STATIC1  int64 = 1
-	DYNAMIC1 int64 = 2
+	UNKNOWN        int64 = 0
+	STATIC1        int64 = 1
+	DYNAMIC1_TABLE int64 = 2
+	DYNAMIC1_INDEX int64 = 3
 )
 
 const (
@@ -61,7 +53,7 @@ func (self *ColumnType) GetBytes() (int64, error) {
 	} else if self.Type == "float64" {
 		return 8, nil
 	} else if self.Type == "string" {
-		if self.Size < 1 {
+		if self.Size < 0 {
 			return 0, errors.New("Size is not valid")
 		}
 		return self.Size, nil
@@ -76,6 +68,9 @@ func (self *ColumnType) GetNil() ([]byte, error) {
 	byteNum, err := self.GetBytes()
 	if err != nil {
 		return nil, err
+	}
+	if byteNum == 0 {
+		byteNum = 1
 	}
 	b = make([]byte, byteNum)
 	if self.Type == "int64" {
@@ -137,6 +132,9 @@ func (self *ColumnType) ConvertToBytes(val interface{}) ([]byte, error) {
 		if ok == false {
 			return nil, errors.New("Missmatch type(string) and val: " + self.Name)
 		}
+		if byteNum == 0 {
+			byteNum = int64(len(v))
+		}
 		b = make([]byte, byteNum)
 		if int64(len(v)) > byteNum {
 			return nil, errors.New("Too long string for " + self.Name)
@@ -174,6 +172,9 @@ func (self *ColumnType) ConvertToVal(b []byte) (interface{}, error) {
 		return v, nil
 	} else if self.Type == "string" {
 		n := bytes.IndexByte(b, 0)
+		if n == -1 {
+			n = len(b)
+		}
 		v := string(b[:n])
 		return v, nil
 	} else if self.Type == "time" {

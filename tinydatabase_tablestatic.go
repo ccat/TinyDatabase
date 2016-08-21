@@ -1,39 +1,19 @@
-/*
- Package tinydatabase provides simple database functions.
-*/
 package tinydatabase
 
 import (
-	"bytes"
+	//"bytes"
 	"encoding/binary"
 	"encoding/json"
 	"errors"
 	//"fmt"
 	"io"
 	"io/ioutil"
-	"math"
+	//"math"
 	"os"
 	"path"
 	//"strconv"
-	"time"
+	//"time"
 )
-
-type ColumnType struct {
-	Name string
-	Type string
-	Size int64 //When Size is 0, size of the column can be variable
-}
-
-type Row map[string]interface{}
-
-type TableInterface interface {
-	NewTable(directory string, tablename string, columnTypes []ColumnType) error
-	Open(directory string, tablename string) error
-	Close() error
-	ReadRow(rowNum int64) (Row, error)
-	WriteRow(rowNum int64, row Row) (int64, error)
-	DeleteRow(rowNum int64) error
-}
 
 type TableStatic struct {
 	tablefile   *os.File
@@ -41,31 +21,6 @@ type TableStatic struct {
 	columnTypes []ColumnType
 	columnBytes int64
 }
-
-type TableDynamic struct {
-	tablefile           *os.File
-	indexfile           *os.File
-	fileVersion         int64
-	columnTypes         []ColumnType
-	columnBytes         int64
-	numOfFlexibleColumn int64
-}
-
-const (
-	UNKNOWN  int64 = 0
-	STATIC1  int64 = 1
-	DYNAMIC1 int64 = 2
-)
-
-const (
-	ROW_DELETED byte = 0
-	ROW_NORMAL  byte = 1
-)
-
-/*type TinyDatabaseError struct {
-	Id      int
-	Message string
-}*/
 
 /*
  NewTable func creates table file and config file.
@@ -76,7 +31,7 @@ func (self *TableStatic) NewTable(directory string, tablename string, columnType
 	directory = directory + "/"
 	dCheck, err := os.Stat(directory)
 	dCheck = dCheck
-	/*if err != nil {
+	if err != nil {
 		return err
 	}
 	if dCheck.IsDir() == false {
@@ -90,7 +45,11 @@ func (self *TableStatic) NewTable(directory string, tablename string, columnType
 	_, err = os.Stat(directory + tablename + ".table")
 	if err == nil {
 		return errors.New("Table file exists.")
-	}*/
+	}
+	err = self.Close()
+	if err != nil {
+		return err
+	}
 
 	err = self.setColumns(columnTypes)
 	if err != nil {
@@ -108,6 +67,9 @@ func (self *TableStatic) NewTable(directory string, tablename string, columnType
 	return nil
 }
 
+/*
+ Open func opens table file and config file.
+*/
 func (self *TableStatic) Open(directory string, tablename string) error {
 	err := self.Close()
 	if err != nil {
@@ -138,13 +100,13 @@ func (self *TableStatic) Close() error {
 	return nil
 }
 
-func (self *TableStatic) WriteRow(rowNum int64, row Row) (int64, error) {
-	if rowNum == -1 {
-		temp, err := self.searchLastOff()
-		if err != nil {
-			return -1, err
-		}
-		rowNum = temp
+/*
+ WriteRow func writes row on table file.
+*/
+func (self *TableStatic) WriteRow(row Row) (int64, error) {
+	rowNum, err := self.searchLastRowNum()
+	if err != nil {
+		return -1, err
 	}
 	targetOff := self.convertRowNumToOffset(rowNum)
 	var b []byte
@@ -181,11 +143,21 @@ func (self *TableStatic) WriteRow(rowNum int64, row Row) (int64, error) {
 }
 
 func (self *TableStatic) ReadRow(rowNum int64) (Row, error) {
+	lastRowNum, err := self.searchLastRowNum()
+	if err != nil {
+		return nil, err
+	}
+	if rowNum > lastRowNum {
+		return nil, errors.New("Out of Row index")
+	}
+	if rowNum < 0 {
+		return nil, errors.New("Out of Row index")
+	}
 	targetOff := self.convertRowNumToOffset(rowNum)
 
 	var b []byte
 	b = make([]byte, 1)
-	_, err := self.tablefile.ReadAt(b, targetOff)
+	_, err = self.tablefile.ReadAt(b, targetOff)
 	if err != nil {
 		return nil, err
 	}
@@ -218,145 +190,27 @@ func (self *TableStatic) ReadRow(rowNum int64) (Row, error) {
 }
 
 func (self *TableStatic) DeleteRow(rowNum int64) error {
+	lastRowNum, err := self.searchLastRowNum()
+	if err != nil {
+		return err
+	}
+	if rowNum > lastRowNum {
+		return errors.New("Out of Row index")
+	}
+	if rowNum < 0 {
+		return errors.New("Out of Row index")
+	}
+
 	targetOff := self.convertRowNumToOffset(rowNum)
 	var b []byte
 	b = make([]byte, 1)
 	b[0] = ROW_DELETED
-	_, err := self.tablefile.WriteAt(b, targetOff)
+	_, err = self.tablefile.WriteAt(b, targetOff)
 	err = self.tablefile.Sync()
 	if err != nil {
 		return err
 	}
 	return nil
-}
-
-//**************************************************
-
-func (self *ColumnType) GetBytes() (int64, error) {
-	if self.Type == "int64" {
-		return binary.MaxVarintLen64, nil
-	} else if self.Type == "float64" {
-		return 8, nil
-	} else if self.Type == "string" {
-		return self.Size, nil
-	} else if self.Type == "time" {
-		return 15, nil
-	}
-	return 0, errors.New("Type is not valid")
-}
-
-func (self *ColumnType) GetNil() ([]byte, error) {
-	var b []byte
-	byteNum, err := self.GetBytes()
-	if err != nil {
-		return nil, err
-	}
-	b = make([]byte, byteNum)
-	if self.Type == "int64" {
-		binary.PutVarint(b, int64(0))
-		return b, nil
-	} else if self.Type == "float64" {
-		bits := math.Float64bits(0.0)
-		binary.LittleEndian.PutUint64(b, bits)
-		return b, nil
-	} else if self.Type == "string" {
-		return b, nil
-	} else if self.Type == "time" {
-		b, err = time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC).MarshalBinary()
-		if err != nil {
-			return nil, err
-		}
-		return b, nil
-	} else {
-		return nil, errors.New("Type is not valid")
-	}
-}
-
-func (self *ColumnType) ConvertToBytes(val interface{}) ([]byte, error) {
-	var b []byte
-	byteNum, err := self.GetBytes()
-	if err != nil {
-		return nil, err
-	}
-	if self.Type == "int64" {
-		var v int64
-		switch vi := val.(type) {
-		case int64:
-			v = vi //.(int64)
-		case int:
-			v = int64(vi)
-		case int8:
-			v = int64(vi)
-		case int16:
-			v = int64(vi)
-		case int32:
-			v = int64(vi)
-		default:
-			return nil, errors.New("Missmatch type(int64) and val: " + self.Name)
-		}
-		b = make([]byte, byteNum)
-		binary.PutVarint(b, v)
-		return b, nil
-	} else if self.Type == "float64" {
-		v, ok := val.(float64)
-		if ok == false {
-			return nil, errors.New("Missmatch type(float64) and val: " + self.Name)
-		}
-		b = make([]byte, byteNum)
-		bits := math.Float64bits(v)
-		binary.LittleEndian.PutUint64(b, bits)
-		return b, nil
-	} else if self.Type == "string" {
-		v, ok := val.(string)
-		if ok == false {
-			return nil, errors.New("Missmatch type(string) and val: " + self.Name)
-		}
-		b = make([]byte, byteNum)
-		for i := 0; i < len(v); i++ {
-			b[i] = v[i]
-		}
-		return b, nil
-	} else if self.Type == "time" {
-		v, ok := val.(time.Time)
-		if ok == false {
-			return nil, errors.New("Missmatch type(time) and val: " + self.Name)
-		}
-		b, err = v.MarshalBinary()
-		if err != nil {
-			return nil, err
-		}
-		return b, nil
-	} else {
-		return nil, errors.New("Type is not valid: " + self.Name)
-	}
-}
-
-func (self *ColumnType) ConvertToVal(b []byte) (interface{}, error) {
-	if self.Type == "int64" {
-		var v int64
-		v, num := binary.Varint(b)
-		if num < 1 {
-			return nil, errors.New("Missmatch type(int64) and val: " + self.Name)
-		}
-		return v, nil
-	} else if self.Type == "float64" {
-		bits := binary.LittleEndian.Uint64(b)
-		v := math.Float64frombits(bits)
-		return v, nil
-	} else if self.Type == "string" {
-		n := bytes.IndexByte(b, 0)
-		v := string(b[:n])
-		return v, nil
-	} else if self.Type == "time" {
-		var v time.Time
-		err := v.UnmarshalBinary(b)
-		if err != nil {
-			return nil, err
-		}
-		return v, nil
-	} else {
-		return nil, errors.New("Type is not valid: " + self.Name)
-	}
 }
 
 //**************************************************
@@ -457,7 +311,7 @@ func (self *TableStatic) convertOffsetToRowNum(offset int64) int64 {
 	return rowNum
 }
 
-func (self *TableStatic) searchLastOff() (int64, error) {
+func (self *TableStatic) searchLastRowNum() (int64, error) {
 	lastOff, err := self.tablefile.Seek(0, 2)
 	if err != nil {
 		return -1, err
