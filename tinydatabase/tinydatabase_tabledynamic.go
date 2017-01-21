@@ -312,6 +312,10 @@ func (self *TableDynamic) DeleteRow(rowNum int64) error {
 	return nil
 }
 
+func (self *TableDynamic) GetTableType() string {
+	return "TableDynamic"
+}
+
 //**************************************************
 
 func (self *TableDynamic) openConfigFile(configfilename string) error {

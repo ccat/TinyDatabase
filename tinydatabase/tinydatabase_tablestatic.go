@@ -102,15 +102,11 @@ func (self *TableStatic) Close() error {
 
 /*
  WriteRow func writes row on table file.
- When rowNum is -1, new row will be created.
 */
-func (self *TableStatic) WriteRow(rowNum int64, row Row) (int64, error) {
-	lastRowNum, err := self.searchLastRowNum()
+func (self *TableStatic) WriteRow(row Row) (int64, error) {
+	rowNum, err := self.searchLastRowNum()
 	if err != nil {
 		return -1, err
-	}
-	if rowNum == -1 || rowNum > lastRowNum {
-		rowNum = lastRowNum
 	}
 	targetOff := self.convertRowNumToOffset(rowNum)
 	var b []byte
@@ -215,6 +211,10 @@ func (self *TableStatic) DeleteRow(rowNum int64) error {
 		return err
 	}
 	return nil
+}
+
+func (self *TableStatic) GetTableType() string {
+	return "TableStatic"
 }
 
 //**************************************************

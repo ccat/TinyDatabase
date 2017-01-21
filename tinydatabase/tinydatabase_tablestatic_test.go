@@ -10,10 +10,13 @@ import (
 )
 
 func Test1_TableStatic_basicUsage(t *testing.T) {
-	directory := "./"
+	directory := "./testdata/"
 	tablename := "test"
-	os.Remove(directory + tablename + ".table")
-	os.Remove(directory + tablename + ".config")
+	/*os.Remove(directory + tablename + ".table")
+	os.Remove(directory + tablename + ".config")*/
+	os.RemoveAll(directory)
+	os.Mkdir(directory, 0777)
+
 	columnSet := []ColumnType{
 		{Name: "intline", Type: "int64", Size: 64},
 		{Name: "floatline", Type: "float64", Size: 64},
@@ -28,11 +31,11 @@ func Test1_TableStatic_basicUsage(t *testing.T) {
 	if err != nil {
 		t.Errorf("Failed to create table: %s", err)
 	}
-	_, err = os.Stat(tablename + ".table")
+	_, err = os.Stat(directory + tablename + ".table")
 	if err != nil {
 		t.Errorf("Failed to create table file:%s", err)
 	}
-	_, err = os.Stat(tablename + ".config")
+	_, err = os.Stat(directory + tablename + ".config")
 	if err != nil {
 		t.Errorf("Failed to create config file:%s", err)
 	}
@@ -48,7 +51,7 @@ func Test1_TableStatic_basicUsage(t *testing.T) {
 	testRow["strline"] = "aaaa"
 	testRow["dateline"] = time.Now()
 
-	num, err := tableInst.WriteRow(-1, testRow)
+	num, err := tableInst.WriteRow(testRow)
 	if err != nil {
 		t.Errorf("Failed to insert row: %s", err)
 	}
@@ -57,7 +60,7 @@ func Test1_TableStatic_basicUsage(t *testing.T) {
 	}
 
 	testRow["floatline"] = 12.5
-	num, err = tableInst.WriteRow(-1, testRow)
+	num, err = tableInst.WriteRow(testRow)
 	if err != nil {
 		t.Errorf("Failed to insert row: %s", err)
 	}
@@ -88,16 +91,6 @@ func Test1_TableStatic_basicUsage(t *testing.T) {
 		t.Errorf("Failed to read row at 0: dateline")
 	}
 
-	testRow2["intline"] = int64(102)
-	_, err = tableInst.WriteRow(num, testRow2)
-	if err != nil {
-		t.Errorf("Failed to update row at 0: %s", err)
-	}
-	testRow3, err := tableInst.ReadRow(num)
-	if testRow2["intline"] != testRow3["intline"] {
-		t.Errorf("Failed to update row at 0: intline")
-	}
-
 	err = tableInst.DeleteRow(num)
 	if err != nil {
 		t.Errorf("Failed to delete row at 0: %s", err)
@@ -108,7 +101,7 @@ func Test1_TableStatic_basicUsage(t *testing.T) {
 	}
 
 	testRow2["intline"] = "string data"
-	_, err = tableInst.WriteRow(-1, testRow2)
+	_, err = tableInst.WriteRow(testRow2)
 	if err == nil {
 		t.Errorf("Failed to check invalid data")
 	}
@@ -117,28 +110,28 @@ func Test1_TableStatic_basicUsage(t *testing.T) {
 	}
 
 	testRow2["intline"] = 100
-	_, err = tableInst.WriteRow(-1, testRow2)
+	_, err = tableInst.WriteRow(testRow2)
 	if err != nil {
 		t.Errorf("Failed to check invalid data: %s", err)
 	}
 	testRow2["intline"] = int32(100)
-	_, err = tableInst.WriteRow(-1, testRow2)
+	_, err = tableInst.WriteRow(testRow2)
 	if err != nil {
 		t.Errorf("Failed to check invalid data: %s", err)
 	}
 	testRow2["intline"] = int16(100)
-	_, err = tableInst.WriteRow(-1, testRow2)
+	_, err = tableInst.WriteRow(testRow2)
 	if err != nil {
 		t.Errorf("Failed to check invalid data: %s", err)
 	}
 	testRow2["intline"] = int8(100)
-	_, err = tableInst.WriteRow(-1, testRow2)
+	_, err = tableInst.WriteRow(testRow2)
 	if err != nil {
 		t.Errorf("Failed to check invalid data: %s", err)
 	}
 
 	testRow2["intline"] = 100.2
-	_, err = tableInst.WriteRow(-1, testRow2)
+	_, err = tableInst.WriteRow(testRow2)
 	if err == nil {
 		t.Errorf("Failed to check invalid data")
 	}
@@ -147,7 +140,7 @@ func Test1_TableStatic_basicUsage(t *testing.T) {
 	}
 	testRow2["intline"] = int64(100)
 	testRow2["strline"] = 100
-	_, err = tableInst.WriteRow(-1, testRow2)
+	_, err = tableInst.WriteRow(testRow2)
 	if err == nil {
 		t.Errorf("Failed to check invalid data")
 	}
@@ -155,21 +148,12 @@ func Test1_TableStatic_basicUsage(t *testing.T) {
 		t.Errorf("Failed to check invalid data: %s", err)
 	}
 	testRow2["strline"] = 100.2
-	_, err = tableInst.WriteRow(-1, testRow2)
+	_, err = tableInst.WriteRow(testRow2)
 	if err == nil {
 		t.Errorf("Failed to check invalid data")
 	}
 	if err != nil && strings.HasPrefix(err.Error(), "Missmatch type(string)") == false {
 		t.Errorf("Failed to check invalid data: %s", err)
-	}
-
-	testRow2["strline"] = "test"
-	num, err = tableInst.WriteRow(1000, testRow2)
-	if err != nil {
-		t.Errorf("Failed to check invalid data: %s", err)
-	}
-	if num == 1000 {
-		t.Errorf("Failed to change row num")
 	}
 
 	_, err = tableInst.ReadRow(1000)
@@ -197,10 +181,12 @@ func Test1_TableStatic_basicUsage(t *testing.T) {
 }
 
 func Test2_TableStatic_errUsage(t *testing.T) {
-	directory := "./"
+	directory := "./testdata/"
 	tablename := "test"
-	os.Remove(tablename + ".table")
-	os.Remove(tablename + ".config")
+	/*os.Remove(tablename + ".table")
+	os.Remove(tablename + ".config")*/
+	os.RemoveAll(directory)
+	os.Mkdir(directory, 0777)
 
 	columnSet := []ColumnType{
 		{Name: "intline", Type: "int64", Size: 64},
@@ -231,7 +217,7 @@ func Test2_TableStatic_errUsage(t *testing.T) {
 		t.Errorf("Failed to return column config error")
 	}
 
-	directory = "./notexistdir"
+	directory = "./notexistdir/"
 	columnSet = []ColumnType{
 		{Name: "intline", Type: "int64", Size: 64},
 		{Name: "floatline", Type: "float64", Size: 64},
@@ -245,7 +231,7 @@ func Test2_TableStatic_errUsage(t *testing.T) {
 		t.Errorf("Failed to return directory check error")
 	}
 
-	directory = "./"
+	directory = "./testdata/"
 	columnSet = []ColumnType{
 		{Name: "intline", Type: "int64", Size: 64},
 		{Name: "floatline", Type: "float64", Size: 64},
@@ -277,7 +263,7 @@ func Test2_TableStatic_errUsage(t *testing.T) {
 	testRow["strline"] = "This is over than 10 words"
 	testRow["dateline"] = time.Now()
 
-	_, err = tableInst.WriteRow(-1, testRow)
+	_, err = tableInst.WriteRow(testRow)
 	if err == nil {
 		t.Errorf("Failed to check string count")
 	}

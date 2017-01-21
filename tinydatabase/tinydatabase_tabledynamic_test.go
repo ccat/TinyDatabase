@@ -9,30 +9,35 @@ import (
 	"time"
 )
 
-func Test1_TableStatic_basicUsage(t *testing.T) {
-	directory := "./"
-	tablename := "test"
-	os.Remove(directory + tablename + ".table")
-	os.Remove(directory + tablename + ".config")
+func Test1_TableDynamic_basicUsage(t *testing.T) {
+	directory := "./testdata/"
+	tablename := "testdynamic"
+	/*os.Remove(directory + tablename + ".table")
+	os.Remove(directory + tablename + ".index")
+	os.Remove(directory + tablename + ".config")*/
+	os.RemoveAll(directory)
+	os.Mkdir(directory, 0777)
+
 	columnSet := []ColumnType{
-		{Name: "intline", Type: "int64", Size: 64},
-		{Name: "floatline", Type: "float64", Size: 64},
-		{Name: "strline", Type: "string", Size: 256},
-		{Name: "dateline", Type: "time", Size: 15},
+		{Name: "intline", Type: COLUMN_INT64, Size: 64},
+		{Name: "floatline", Type: COLUMN_FLOAT64, Size: 64},
+		{Name: "strline", Type: COLUMN_STRING, Size: 0},
+		{Name: "dateline", Type: COLUMN_TIME, Size: 15},
+		{Name: "strline2", Type: COLUMN_STRING, Size: 0},
 	}
 
 	var tableInst TableInterface
-	tableInst = &TableStatic{}
+	tableInst = &TableDynamic{}
 	err := tableInst.NewTable(directory, tablename, columnSet)
 
 	if err != nil {
 		t.Errorf("Failed to create table: %s", err)
 	}
-	_, err = os.Stat(tablename + ".table")
+	_, err = os.Stat(directory + tablename + ".table")
 	if err != nil {
 		t.Errorf("Failed to create table file:%s", err)
 	}
-	_, err = os.Stat(tablename + ".config")
+	_, err = os.Stat(directory + tablename + ".config")
 	if err != nil {
 		t.Errorf("Failed to create config file:%s", err)
 	}
@@ -47,6 +52,7 @@ func Test1_TableStatic_basicUsage(t *testing.T) {
 	testRow["floatline"] = 10.5
 	testRow["strline"] = "aaaa"
 	testRow["dateline"] = time.Now()
+	testRow["strline2"] = "aaaabbbb"
 
 	num, err := tableInst.WriteRow(testRow)
 	if err != nil {
@@ -86,6 +92,13 @@ func Test1_TableStatic_basicUsage(t *testing.T) {
 	}
 	if testRow2["dateline"] != testRow["dateline"] {
 		t.Errorf("Failed to read row at 0: dateline")
+	}
+	str1, _ = testRow["strline2"].(string)
+	str2, _ = testRow2["strline2"].(string)
+	if str2 != str1 {
+		t.Errorf("Failed to read row at 0: strline2: %s!=%s", str2, str1)
+		t.Errorf("len testMap:%d", len(str1))
+		t.Errorf("len testMap2:%d", len(str2))
 	}
 
 	err = tableInst.DeleteRow(num)
@@ -177,21 +190,24 @@ func Test1_TableStatic_basicUsage(t *testing.T) {
 
 }
 
-func Test2_TableStatic_errUsage(t *testing.T) {
-	directory := "./"
-	tablename := "test"
-	os.Remove(tablename + ".table")
-	os.Remove(tablename + ".config")
+func Test2_TableDynamic_errUsage(t *testing.T) {
+	directory := "./testdata/"
+	tablename := "testdynamic"
+	/*os.Remove(directory + tablename + ".table")
+	os.Remove(directory + tablename + ".index")
+	os.Remove(directory + tablename + ".config")*/
+	os.RemoveAll(directory)
+	os.Mkdir(directory, 0777)
 
 	columnSet := []ColumnType{
 		{Name: "intline", Type: "int64", Size: 64},
 		{Name: "floatline", Type: "float64", Size: 64},
-		{Name: "strline", Type: "string", Size: 256},
+		{Name: "strline", Type: "string", Size: 0},
 		{Name: "dateline", Type: "time2", Size: 15},
 	}
 
 	var tableInst TableInterface
-	tableInst = &TableStatic{}
+	tableInst = &TableDynamic{}
 	err := tableInst.NewTable(directory, tablename, columnSet)
 
 	if err == nil {
@@ -212,12 +228,13 @@ func Test2_TableStatic_errUsage(t *testing.T) {
 		t.Errorf("Failed to return column config error")
 	}
 
-	directory = "./notexistdir"
+	directory = "./notexistdir/"
 	columnSet = []ColumnType{
 		{Name: "intline", Type: "int64", Size: 64},
 		{Name: "floatline", Type: "float64", Size: 64},
-		{Name: "strline", Type: "string", Size: 10},
+		{Name: "strline", Type: "string", Size: 0},
 		{Name: "dateline", Type: "time", Size: 15},
+		{Name: "strline2", Type: "string", Size: 0},
 	}
 
 	err = tableInst.NewTable(directory, tablename, columnSet)
@@ -226,7 +243,7 @@ func Test2_TableStatic_errUsage(t *testing.T) {
 		t.Errorf("Failed to return directory check error")
 	}
 
-	directory = "./"
+	directory = "./testdata/"
 	columnSet = []ColumnType{
 		{Name: "intline", Type: "int64", Size: 64},
 		{Name: "floatline", Type: "float64", Size: 64},
@@ -243,24 +260,14 @@ func Test2_TableStatic_errUsage(t *testing.T) {
 	columnSet = []ColumnType{
 		{Name: "intline", Type: "int64", Size: 64},
 		{Name: "floatline", Type: "float64", Size: 64},
-		{Name: "strline", Type: "string", Size: 10},
+		{Name: "strline", Type: "string", Size: 0},
 		{Name: "dateline", Type: "time", Size: 15},
+		{Name: "strline2", Type: "string", Size: 0},
 	}
 
 	err = tableInst.NewTable(directory, tablename, columnSet)
 	if err != nil {
 		t.Errorf("Failed to create new table:%s", err)
-	}
-
-	testRow := make(Row)
-	testRow["intline"] = int64(100)
-	testRow["floatline"] = 10.5
-	testRow["strline"] = "This is over than 10 words"
-	testRow["dateline"] = time.Now()
-
-	_, err = tableInst.WriteRow(testRow)
-	if err == nil {
-		t.Errorf("Failed to check string count")
 	}
 
 	err = tableInst.NewTable(directory, tablename, columnSet)

@@ -33,6 +33,7 @@ type TableInterface interface {
 	ReadRow(rowNum int64) (Row, error)
 	WriteRow(row Row) (int64, error)
 	DeleteRow(rowNum int64) error
+	GetTableType() string
 }
 
 const (
@@ -45,6 +46,13 @@ const (
 const (
 	ROW_DELETED byte = 0
 	ROW_NORMAL  byte = 1
+)
+
+const (
+	COLUMN_INT64   string = "int64"
+	COLUMN_FLOAT64 string = "float64"
+	COLUMN_STRING  string = "string"
+	COLUMN_TIME    string = "time"
 )
 
 func (self *ColumnType) GetBytes() (int64, error) {
