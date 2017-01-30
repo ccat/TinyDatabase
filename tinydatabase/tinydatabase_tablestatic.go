@@ -15,6 +15,7 @@ import (
 	//"time"
 )
 
+//TableStatic is a fixed size row table.
 type TableStatic struct {
 	tablefile   *os.File
 	fileVersion int64

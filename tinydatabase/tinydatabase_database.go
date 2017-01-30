@@ -10,16 +10,16 @@ import (
 	"io/ioutil"
 	"os"
 	"strings"
-
-	//"github.com/BurntSushi/toml"
 )
 
+//Database is a manager struct of tables.
 type Database struct {
 	filetype  string
 	directory string
 	tables    map[string]TableInterface
 }
 
+//DatabaseList is a manager struct of databases.
 type DatabaseList struct {
 	filetype  string
 	directory string
@@ -37,6 +37,7 @@ var (
 	DirParmission       = 0755
 )
 
+//NewDatabaseList creates a new DatabaseList with directory.
 func NewDatabaseList(directory string, databaseType string) (result *DatabaseList, err error) {
 	if databaseType != "json" /*&& databaseType != "toml"*/ {
 		return nil, ErrInvalidFiletype
@@ -59,6 +60,7 @@ func NewDatabaseList(directory string, databaseType string) (result *DatabaseLis
 	return result, err
 }
 
+//LoadDatabaseList loads DatabaseList from directory.
 func LoadDatabaseList(directory string, databaseType string) (result *DatabaseList, err error) {
 	if databaseType != "json" /*&& databaseType != "toml"*/ {
 		return nil, ErrInvalidFiletype
@@ -77,6 +79,7 @@ func LoadDatabaseList(directory string, databaseType string) (result *DatabaseLi
 	return result, err
 }
 
+//NewDatabase creates new Database under the DatabaseList directory.
 func (self *DatabaseList) NewDatabase(name string) (result *Database, err error) {
 	_, ok := self.Databases[name]
 	if ok == true {
@@ -91,6 +94,7 @@ func (self *DatabaseList) NewDatabase(name string) (result *Database, err error)
 	return self.Databases[name], err
 }
 
+//Get returns specified Database or error.
 func (self *DatabaseList) Get(name string) (result *Database, err error) {
 	result, ok := self.Databases[name]
 	if ok == false {
@@ -99,6 +103,7 @@ func (self *DatabaseList) Get(name string) (result *Database, err error) {
 	return result, nil
 }
 
+//Save saves all databases and tables.
 func (self *DatabaseList) Save() (err error) {
 	file, err := os.Create(self.directory + "/databases.config")
 	if err != nil {
@@ -145,6 +150,7 @@ func (self *DatabaseList) Save() (err error) {
 	return nil
 }
 
+//Load loads DatabaseList.
 func (self *DatabaseList) Load() (err error) {
 	data, err := ioutil.ReadFile(self.directory + "/databases.config")
 	if err != nil {
@@ -170,6 +176,7 @@ func (self *DatabaseList) Load() (err error) {
 	return nil
 }
 
+//Close closes all Databases.
 func (self *DatabaseList) Close() (err error) {
 	for _, val := range self.Databases {
 		err = val.Close()
@@ -180,6 +187,7 @@ func (self *DatabaseList) Close() (err error) {
 	return nil
 }
 
+//New creates Database on the directory.
 func (self *Database) New(directory string, filetype string) error {
 	if filetype != "json" /*&& filetype != "toml"*/ {
 		return ErrInvalidFiletype
@@ -201,6 +209,7 @@ func (self *Database) New(directory string, filetype string) error {
 	return err
 }
 
+//Save saves config and all tables.
 func (self *Database) Save() error {
 	file, err := os.Create(self.directory + "/tables.config")
 	if err != nil {
@@ -231,6 +240,7 @@ func (self *Database) Save() error {
 	return nil
 }
 
+//Load loads Database from directory.
 func (self *Database) Load(directory string, filetype string) error {
 	if filetype != "json" /*&& filetype != "toml"*/ {
 		return ErrInvalidFiletype
@@ -276,6 +286,7 @@ func (self *Database) Load(directory string, filetype string) error {
 	return err
 }
 
+//NewTable creates table.
 func (self *Database) NewTable(tablename string, tableType string, columnTypes []ColumnType) (result TableInterface, err error) {
 	if tableType == "static" {
 		result = &TableStatic{}
@@ -294,6 +305,7 @@ func (self *Database) NewTable(tablename string, tableType string, columnTypes [
 	return result, err
 }
 
+//GetTable returns table.
 func (self *Database) GetTable(name string) (TableInterface, error) {
 	result, ok := self.tables[name]
 	if ok == false {
@@ -302,6 +314,7 @@ func (self *Database) GetTable(name string) (TableInterface, error) {
 	return result, nil
 }
 
+//Close closes tables.
 func (self *Database) Close() (err error) {
 	for _, val := range self.tables {
 		err = val.Close()
@@ -312,8 +325,7 @@ func (self *Database) Close() (err error) {
 	return nil
 }
 
-//***************************************************
-
+//createDir create directory when not exist.
 func createDir(directory string) error {
 	fInfo, err := os.Stat(directory)
 	if err != nil {
@@ -333,6 +345,7 @@ func createDir(directory string) error {
 	return nil
 }
 
+//dbExistanceCheck checks database is there or not.
 func dbExistanceCheck(filePath string) error {
 	_, err := os.Stat(filePath)
 	if err != nil {

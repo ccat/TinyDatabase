@@ -1,6 +1,3 @@
-/*
- Package tinydatabase provides simple database functions.
-*/
 package tinydatabase
 
 import (
@@ -18,14 +15,17 @@ import (
 	"time"
 )
 
+//ColumnType stores column information.
 type ColumnType struct {
 	Name string
 	Type string
 	Size int64 //When Size is 0, size of the column can be variable
 }
 
+//Row interface is a one line of table.
 type Row map[string]interface{}
 
+//TableInterface is a interface for dynamic/static table.
 type TableInterface interface {
 	NewTable(directory string, tablename string, columnTypes []ColumnType) error
 	Open(directory string, tablename string) error
@@ -55,6 +55,7 @@ const (
 	COLUMN_TIME    string = "time"
 )
 
+//GetBytes returns data size of column.
 func (self *ColumnType) GetBytes() (int64, error) {
 	if self.Type == "int64" {
 		return binary.MaxVarintLen64, nil
@@ -71,6 +72,7 @@ func (self *ColumnType) GetBytes() (int64, error) {
 	return 0, errors.New("Type is not valid")
 }
 
+//GetNil returns 0.
 func (self *ColumnType) GetNil() ([]byte, error) {
 	var b []byte
 	byteNum, err := self.GetBytes()
@@ -101,6 +103,7 @@ func (self *ColumnType) GetNil() ([]byte, error) {
 	}
 }
 
+//ConvertToBytes converts from value to []byte.
 func (self *ColumnType) ConvertToBytes(val interface{}) ([]byte, error) {
 	var b []byte
 	byteNum, err := self.GetBytes()
@@ -166,6 +169,7 @@ func (self *ColumnType) ConvertToBytes(val interface{}) ([]byte, error) {
 	}
 }
 
+//ConvertToVal convert from []byte to value.
 func (self *ColumnType) ConvertToVal(b []byte) (interface{}, error) {
 	if self.Type == "int64" {
 		var v int64

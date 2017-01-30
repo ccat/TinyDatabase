@@ -15,6 +15,7 @@ import (
 	//"time"
 )
 
+//TableDynamic is a not fixed size row table.
 type TableDynamic struct {
 	tablefile           *os.File
 	indexfile           *os.File
