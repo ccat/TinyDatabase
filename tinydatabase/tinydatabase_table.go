@@ -34,6 +34,7 @@ type TableInterface interface {
 	WriteRow(row Row) (int64, error)
 	DeleteRow(rowNum int64) error
 	GetTableType() string
+	GetColumns() []ColumnType
 }
 
 const (
@@ -123,6 +124,8 @@ func (self *ColumnType) ConvertToBytes(val interface{}) ([]byte, error) {
 			v = int64(vi)
 		case int32:
 			v = int64(vi)
+		case float64:
+			v = int64(vi)
 		default:
 			return nil, errors.New("Missmatch type(int64) and val: " + self.Name)
 		}
@@ -157,7 +160,20 @@ func (self *ColumnType) ConvertToBytes(val interface{}) ([]byte, error) {
 	} else if self.Type == "time" {
 		v, ok := val.(time.Time)
 		if ok == false {
-			return nil, errors.New("Missmatch type(time) and val: " + self.Name)
+			vS, ok := val.(string)
+			if ok == false {
+				return nil, errors.New("Missmatch type(time) and val: " + self.Name)
+			}
+			v, err = time.Parse("2006-01-02 15:04:05 -0700", vS)
+			if err != nil {
+				v, err = time.Parse(time.RFC3339Nano, vS)
+				if err != nil {
+					v, err = time.Parse(time.RFC3339, vS)
+					if err != nil {
+						return nil, errors.New("Missmatch type(time) and val: " + self.Name)
+					}
+				}
+			}
 		}
 		b, err = v.MarshalBinary()
 		if err != nil {

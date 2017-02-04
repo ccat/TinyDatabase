@@ -314,7 +314,7 @@ func (self *TableDynamic) DeleteRow(rowNum int64) error {
 }
 
 func (self *TableDynamic) GetTableType() string {
-	return "TableDynamic"
+	return "dynamic"
 }
 
 //**************************************************
@@ -487,4 +487,8 @@ func (self *TableDynamic) searchLastTableOffset() (int64, error) {
 	}
 	return v, nil
 
+}
+
+func (self *TableDynamic) GetColumns() []ColumnType {
+	return self.columnTypes
 }

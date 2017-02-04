@@ -215,7 +215,7 @@ func (self *TableStatic) DeleteRow(rowNum int64) error {
 }
 
 func (self *TableStatic) GetTableType() string {
-	return "TableStatic"
+	return "static"
 }
 
 //**************************************************
@@ -333,3 +333,7 @@ func (self *TableStatic) searchLastRowNum() (int64, error) {
 func (self TinyDatabaseError) Error() string {
 	return self.Message
 }*/
+
+func (self *TableStatic) GetColumns() []ColumnType {
+	return self.columnTypes
+}

@@ -268,10 +268,10 @@ func (self *Database) Load(directory string, filetype string) error {
 	}
 	for key, val := range tableNameMap {
 		var tableI TableInterface
-		if val == "TableStatic" {
+		if val == "static" {
 			tableI = &TableStatic{}
 
-		} else if val == "TableDynamic" {
+		} else if val == "dynamic" {
 			tableI = &TableDynamic{}
 		} else {
 			return ErrNotImplemented

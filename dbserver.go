@@ -14,8 +14,11 @@ import (
 func main() {
 	db, err := tinydatabase.LoadDatabaseList("webdb", "json")
 	if err != nil {
-		fmt.Printf("ERROR:%s", err)
-		return
+		db, err = tinydatabase.NewDatabaseList("webdb", "json")
+		if err != nil {
+			fmt.Printf("ERROR:%s", err)
+			return
+		}
 	}
 
 	webIf := tinydatabase.WebIF{}
